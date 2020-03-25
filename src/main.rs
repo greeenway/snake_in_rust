@@ -30,20 +30,29 @@ impl SnakeDirection {
     }
 }
 
-struct SnakeState {
+struct Segment {
     x: i32,
     y: i32,
+}
+
+struct SnakeState {
     direction: SnakeDirection,
     requested_direction: SnakeDirection,
+    segments: Vec<Segment>,
 }
 
 impl SnakeState {
-    pub fn new(x: i32, y: i32) -> SnakeState {
+    pub fn new(x: i32, y: i32, length: u32) -> SnakeState {
+        let mut segments = Vec::new();
+
+        for i in 0..length {
+            segments.push(Segment {x:x - i as i32, y});
+        }
+
         SnakeState {
-            x: x,
-            y: y,
             direction: SnakeDirection::Right,
             requested_direction: SnakeDirection::Right,
+            segments: segments,
         }
     }
 }
@@ -79,7 +88,7 @@ impl GameState {
     pub fn new(x: i32, y: i32) -> GameState {
         GameState {
             done: false,
-            snake_state: SnakeState::new(x, y),
+            snake_state: SnakeState::new(x, y, 6),
             food: Food::new(),
             field: GameField { width: 60, height: 40},
         }
@@ -118,19 +127,19 @@ pub fn render(state: &GameState, canvas: &mut render::WindowCanvas) {
     }
 
     // draw snake
-    let snake_rect = rect::Rect::new(margin + state.snake_state.x*pixel_size as i32, 
-                                     y_top as i32 - state.snake_state.y*pixel_size as i32,
-                                     pixel_size,
-                                     pixel_size);
-    canvas.set_draw_color(Color::RGB(0, 0, 0));
-    let _result = canvas.fill_rect(snake_rect);
+    canvas.set_draw_color(Color::RGB(30, 30, 100));
 
-    println!("x pos : {}", state.snake_state.x as i32);
-    println!("x: {}", margin + state.snake_state.x*pixel_size as i32);
-    println!("y top: {}", y_top);
+    for segment in state.snake_state.segments.iter() {
+        let snake_rect = rect::Rect::new(margin + segment.x*pixel_size as i32, 
+            y_top as i32 - segment.y*pixel_size as i32,
+            pixel_size,
+            pixel_size);
+
+        let _result = canvas.fill_rect(snake_rect);
+    }
+    
 
     // draw food
-
     canvas.set_draw_color(Color::RGB(50, 100, 50));
     let food_rect = rect::Rect::new(margin + state.food.x*pixel_size as i32, 
                                     y_top as i32 - state.food.y*pixel_size as i32,
@@ -180,11 +189,19 @@ pub fn process_game_logic(state: &mut GameState) {
         state.snake_state.direction = state.snake_state.direction;
     }
 
+    let last_seg = state.snake_state.segments.len();
+    for i in 1..last_seg {
+        let prev = last_seg - i;
+        let cur = prev - 1;
+        state.snake_state.segments[prev].x = state.snake_state.segments[cur].x;
+        state.snake_state.segments[prev].y = state.snake_state.segments[cur].y;
+    }
+
     match state.snake_state.direction {
-        SnakeDirection::Up => state.snake_state.y += 1,
-        SnakeDirection::Down => state.snake_state.y -= 1,
-        SnakeDirection::Left => state.snake_state.x -= 1,
-        SnakeDirection::Right => state.snake_state.x += 1,
+        SnakeDirection::Up => state.snake_state.segments[0].y += 1,
+        SnakeDirection::Down => state.snake_state.segments[0].y -= 1,
+        SnakeDirection::Left => state.snake_state.segments[0].x -= 1,
+        SnakeDirection::Right => state.snake_state.segments[0].x += 1,
     }
 }
 
