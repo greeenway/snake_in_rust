@@ -1,4 +1,14 @@
+// todos
+// food created outside
+// boundary check
+// snake check against itself
+// score
+// end of game mode
+// restart
+
 extern crate sdl2; 
+
+use rand::Rng;
 
 use sdl2::pixels::Color;
 use sdl2::event::Event;
@@ -104,30 +114,31 @@ pub fn render(state: &GameState, canvas: &mut render::WindowCanvas) {
     let y_top = pixel_size * state.field.height + margin as u32;
 
     // draw background
-    canvas.set_draw_color(Color::RGB(255, 255, 255));
+    canvas.set_draw_color(Color::RGB(0xbf, 0xdb, 0xf7));
     canvas.clear();
     
+
     // draw game field
     let game_rect = rect::Rect::new(margin, margin, pixel_size*state.field.width, pixel_size*state.field.height);
     canvas.set_draw_color(Color::RGB(0, 0, 0));
     let _result = canvas.draw_rect(game_rect);
 
     // draw grid
-    canvas.set_draw_color(Color::RGB(200, 200, 200));
-    for i in 1..state.field.width as i32 {
-        let start = rect::Point::new(margin + i *(pixel_size as i32), margin);
-        let end = rect::Point::new(margin + i* (pixel_size as i32), margin + (pixel_size as i32) * state.field.height as i32);
-        let _result = canvas.draw_line(start, end);
-    }
+    // canvas.set_draw_color(Color::RGB(200, 200, 200));
+    // for i in 1..state.field.width as i32 {
+    //     let start = rect::Point::new(margin + i *(pixel_size as i32), margin);
+    //     let end = rect::Point::new(margin + i* (pixel_size as i32), margin + (pixel_size as i32) * state.field.height as i32);
+    //     let _result = canvas.draw_line(start, end);
+    // }
 
-    for i in 1..state.field.height as i32 {
-        let start = rect::Point::new(margin, margin  + i *(pixel_size as i32));
-        let end = rect::Point::new(margin + (pixel_size as i32) * state.field.width as i32, margin + i* (pixel_size as i32));
-        let _result = canvas.draw_line(start, end);
-    }
+    // for i in 1..state.field.height as i32 {
+    //     let start = rect::Point::new(margin, margin  + i *(pixel_size as i32));
+    //     let end = rect::Point::new(margin + (pixel_size as i32) * state.field.width as i32, margin + i* (pixel_size as i32));
+    //     let _result = canvas.draw_line(start, end);
+    // }
 
     // draw snake
-    canvas.set_draw_color(Color::RGB(30, 30, 100));
+    canvas.set_draw_color(Color::RGB(0x05, 0x3c, 0x5e));
 
     for segment in state.snake_state.segments.iter() {
         let snake_rect = rect::Rect::new(margin + segment.x*pixel_size as i32, 
@@ -137,10 +148,9 @@ pub fn render(state: &GameState, canvas: &mut render::WindowCanvas) {
 
         let _result = canvas.fill_rect(snake_rect);
     }
-    
 
     // draw food
-    canvas.set_draw_color(Color::RGB(50, 100, 50));
+    canvas.set_draw_color(Color::RGB(0x1f, 0x7a, 0x8c));
     let food_rect = rect::Rect::new(margin + state.food.x*pixel_size as i32, 
                                     y_top as i32 - state.food.y*pixel_size as i32,
                                     pixel_size,
@@ -166,16 +176,6 @@ pub fn handle_events(state: &mut GameState, event_iter: event::EventPollIterator
                     _ => {}   
                 }
             },
-            // Event::KeyDown { keycode: Some(Keycode::Right), .. } => {
-            //     state.snake_state.x += 10;
-            // },
-            // Event::KeyDown { keycode: Some(Keycode::Left), .. } => {
-            //     state.snake_state.x -= 10;
-            // },
-
-            // Event::KeyDown { keycode: Some(Keycode::A), .. } => {
-                
-            // },
             _ => {}
         }
     }
@@ -190,6 +190,9 @@ pub fn process_game_logic(state: &mut GameState) {
     }
 
     let last_seg = state.snake_state.segments.len();
+    let last = state.snake_state.segments.last().unwrap();
+    let back = (last.x, last.y);
+
     for i in 1..last_seg {
         let prev = last_seg - i;
         let cur = prev - 1;
@@ -202,6 +205,15 @@ pub fn process_game_logic(state: &mut GameState) {
         SnakeDirection::Down => state.snake_state.segments[0].y -= 1,
         SnakeDirection::Left => state.snake_state.segments[0].x -= 1,
         SnakeDirection::Right => state.snake_state.segments[0].x += 1,
+    }
+
+    if state.snake_state.segments[0].x == state.food.x && state.snake_state.segments[0].y == state.food.y {
+        let mut rng = rand::thread_rng(); // not very efficient
+        let new_x = rng.gen_range(0, state.field.width); // TODO: prohibit that it spawns inside of snake
+        let new_y = rng.gen_range(0, state.field.height);
+        state.food.x = new_x as i32;
+        state.food.y = new_y as i32;
+        state.snake_state.segments.push(Segment {x:back.0 as i32, y:back.1});
     }
 }
 
@@ -233,7 +245,8 @@ pub fn main() {
 
 
         // slow it down a bit
-        let wait_time = time::Duration::from_millis(80);
+        let wait_time = time::Duration::from_millis(50);
         ::std::thread::sleep(wait_time);
     }
 }
+
