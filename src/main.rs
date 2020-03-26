@@ -7,6 +7,7 @@
 // restart
 // disable game input in paused/game_over state
 // understand text rendering -> optimize, load font
+// add starting position for snake
 
 extern crate sdl2; 
 
@@ -205,7 +206,10 @@ pub fn handle_events(state: &mut GameState, event_iter: event::EventPollIterator
                     Keycode::Right => state.snake_state.requested_direction = SnakeDirection::Right,
                     Keycode::Up => state.snake_state.requested_direction = SnakeDirection::Up,
                     Keycode::Down => state.snake_state.requested_direction = SnakeDirection::Down,
-                    Keycode::R => state.game_over = false,
+                    Keycode::R => {
+                        state.snake_state = SnakeState::new(10, 20, 6);
+                        state.game_over = false;
+                    },
                     Keycode::P => state.paused = !state.paused,
                     Keycode::G => state.game_over = true, // for debugging purposes 
                     _ => {}   
