@@ -5,6 +5,8 @@
 // score
 // end of game mode
 // restart
+// disable game input in paused/game_over state
+
 
 extern crate sdl2; 
 
@@ -88,6 +90,8 @@ struct GameField {
 
 pub struct GameState {
     done: bool,
+    game_over: bool,
+    paused: bool,
     snake_state: SnakeState,
     food: Food,
     field: GameField,
@@ -98,6 +102,8 @@ impl GameState {
     pub fn new(x: i32, y: i32) -> GameState {
         GameState {
             done: false,
+            game_over: false,
+            paused: false,
             snake_state: SnakeState::new(x, y, 6),
             food: Food::new(),
             field: GameField { width: 60, height: 40},
@@ -173,6 +179,9 @@ pub fn handle_events(state: &mut GameState, event_iter: event::EventPollIterator
                     Keycode::Right => state.snake_state.requested_direction = SnakeDirection::Right,
                     Keycode::Up => state.snake_state.requested_direction = SnakeDirection::Up,
                     Keycode::Down => state.snake_state.requested_direction = SnakeDirection::Down,
+                    Keycode::R => state.game_over = false,
+                    Keycode::P => state.game_over = !state.game_over,
+                    Keycode::G => state.game_over = true, // for debugging purposes 
                     _ => {}   
                 }
             },
@@ -182,38 +191,40 @@ pub fn handle_events(state: &mut GameState, event_iter: event::EventPollIterator
 }
 
 pub fn process_game_logic(state: &mut GameState) {
-    // figure out snake heading
-    if !state.snake_state.requested_direction.is_opposite(state.snake_state.direction) {
-        state.snake_state.direction = state.snake_state.requested_direction;
-    } else {
-        state.snake_state.direction = state.snake_state.direction;
-    }
+    if !state.game_over && !state.paused {
+        // figure out snake heading
+        if !state.snake_state.requested_direction.is_opposite(state.snake_state.direction) {
+            state.snake_state.direction = state.snake_state.requested_direction;
+        } else {
+            state.snake_state.direction = state.snake_state.direction;
+        }
 
-    let last_seg = state.snake_state.segments.len();
-    let last = state.snake_state.segments.last().unwrap();
-    let back = (last.x, last.y);
+        let last_seg = state.snake_state.segments.len();
+        let last = state.snake_state.segments.last().unwrap();
+        let back = (last.x, last.y);
 
-    for i in 1..last_seg {
-        let prev = last_seg - i;
-        let cur = prev - 1;
-        state.snake_state.segments[prev].x = state.snake_state.segments[cur].x;
-        state.snake_state.segments[prev].y = state.snake_state.segments[cur].y;
-    }
+        for i in 1..last_seg {
+            let prev = last_seg - i;
+            let cur = prev - 1;
+            state.snake_state.segments[prev].x = state.snake_state.segments[cur].x;
+            state.snake_state.segments[prev].y = state.snake_state.segments[cur].y;
+        }
 
-    match state.snake_state.direction {
-        SnakeDirection::Up => state.snake_state.segments[0].y += 1,
-        SnakeDirection::Down => state.snake_state.segments[0].y -= 1,
-        SnakeDirection::Left => state.snake_state.segments[0].x -= 1,
-        SnakeDirection::Right => state.snake_state.segments[0].x += 1,
-    }
+        match state.snake_state.direction {
+            SnakeDirection::Up => state.snake_state.segments[0].y += 1,
+            SnakeDirection::Down => state.snake_state.segments[0].y -= 1,
+            SnakeDirection::Left => state.snake_state.segments[0].x -= 1,
+            SnakeDirection::Right => state.snake_state.segments[0].x += 1,
+        }
 
-    if state.snake_state.segments[0].x == state.food.x && state.snake_state.segments[0].y == state.food.y {
-        let mut rng = rand::thread_rng(); // not very efficient
-        let new_x = rng.gen_range(0, state.field.width); // TODO: prohibit that it spawns inside of snake
-        let new_y = rng.gen_range(0, state.field.height);
-        state.food.x = new_x as i32;
-        state.food.y = new_y as i32;
-        state.snake_state.segments.push(Segment {x:back.0 as i32, y:back.1});
+        if state.snake_state.segments[0].x == state.food.x && state.snake_state.segments[0].y == state.food.y {
+            let mut rng = rand::thread_rng(); // not very efficient
+            let new_x = rng.gen_range(0, state.field.width); // TODO: prohibit that it spawns inside of snake
+            let new_y = rng.gen_range(0, state.field.height);
+            state.food.x = new_x as i32;
+            state.food.y = new_y as i32;
+            state.snake_state.segments.push(Segment {x:back.0 as i32, y:back.1});
+        }
     }
 }
 
