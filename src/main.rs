@@ -1,9 +1,6 @@
 // todos
-// food created outside
-// boundary check
-// snake check against itself
+//
 // score
-// end of game mode
 // restart
 // disable game input in paused/game_over state
 // understand text rendering -> optimize, load font
@@ -78,8 +75,8 @@ struct Food {
 impl Food {
     pub fn new() -> Food {
         Food {
-            x: 30,
-            y: 25
+            x: 40,
+            y: 28
         }
     }
 }
@@ -105,7 +102,7 @@ impl GameState {
             done: false,
             game_over: false,
             paused: false,
-            snake_state: SnakeState::new(x, y, 6),
+            snake_state: SnakeState::new(x, y, 10),
             food: Food::new(),
             field: GameField { width: 60, height: 40},
         }
@@ -127,7 +124,13 @@ pub fn render(state: &GameState, canvas: &mut render::WindowCanvas) {
     // draw game field
     let game_rect = rect::Rect::new(margin, margin, pixel_size*state.field.width, pixel_size*state.field.height);
     
-    canvas.set_draw_color(Color::RGB(0xbf, 0xdb, 0xf7));
+    if state.game_over {
+        canvas.set_draw_color(Color::RGB(0xb2, 0x22, 0x22));
+    } else {
+        //canvas.set_draw_color(Color::RGB(0xbf, 0xdb, 0xf7));
+        canvas.set_draw_color(Color::RGB(240,248,255));
+    }
+    
     let _result = canvas.fill_rect(game_rect);
 
     canvas.set_draw_color(Color::RGB(0, 0, 0));
@@ -152,7 +155,7 @@ pub fn render(state: &GameState, canvas: &mut render::WindowCanvas) {
 
     for segment in state.snake_state.segments.iter() {
         let snake_rect = rect::Rect::new(margin + segment.x*pixel_size as i32, 
-            y_top as i32 - segment.y*pixel_size as i32,
+            y_top as i32 - (segment.y+1)*pixel_size as i32,
             pixel_size,
             pixel_size);
 
@@ -162,7 +165,7 @@ pub fn render(state: &GameState, canvas: &mut render::WindowCanvas) {
     // draw food
     canvas.set_draw_color(Color::RGB(0x1f, 0x7a, 0x8c));
     let food_rect = rect::Rect::new(margin + state.food.x*pixel_size as i32, 
-                                    y_top as i32 - state.food.y*pixel_size as i32,
+                                    y_top as i32 - (state.food.y+1)*pixel_size as i32,
                                     pixel_size,
                                     pixel_size);
     let _result = canvas.fill_rect(food_rect);
@@ -207,7 +210,7 @@ pub fn handle_events(state: &mut GameState, event_iter: event::EventPollIterator
                     Keycode::Up => state.snake_state.requested_direction = SnakeDirection::Up,
                     Keycode::Down => state.snake_state.requested_direction = SnakeDirection::Down,
                     Keycode::R => {
-                        state.snake_state = SnakeState::new(10, 20, 6);
+                        state.snake_state = SnakeState::new(10, 20, 10);
                         state.game_over = false;
                     },
                     Keycode::P => state.paused = !state.paused,
@@ -241,12 +244,32 @@ pub fn process_game_logic(state: &mut GameState) {
         }
 
         match state.snake_state.direction {
-            SnakeDirection::Up => state.snake_state.segments[0].y += 1,
-            SnakeDirection::Down => state.snake_state.segments[0].y -= 1,
-            SnakeDirection::Left => state.snake_state.segments[0].x -= 1,
-            SnakeDirection::Right => state.snake_state.segments[0].x += 1,
+            SnakeDirection::Up => state.snake_state.segments[0].y = (state.snake_state.segments[0].y + 1) % state.field.height as i32,
+            SnakeDirection::Down => {
+                state.snake_state.segments[0].y -= 1;
+                if state.snake_state.segments[0].y < 0 {
+                    state.snake_state.segments[0].y = state.field.height as i32 - 1;
+                }
+            },
+            SnakeDirection::Left => {
+                state.snake_state.segments[0].x -= 1;
+                if state.snake_state.segments[0].x < 0 {
+                    state.snake_state.segments[0].x = state.field.width as i32 - 1;
+                }
+            },
+            SnakeDirection::Right => state.snake_state.segments[0].x = (state.snake_state.segments[0].x + 1) % state.field.width as i32,
         }
 
+        // check collision with itself
+        for i in 1..last_seg {
+            if (state.snake_state.segments[0].x == state.snake_state.segments[i].x) &&
+               (state.snake_state.segments[0].y == state.snake_state.segments[i].y) {
+                state.game_over = true;
+                return;
+            }
+        }
+
+        // eating
         if state.snake_state.segments[0].x == state.food.x && state.snake_state.segments[0].y == state.food.y {
             let mut rng = rand::thread_rng(); // not very efficient
             let new_x = rng.gen_range(0, state.field.width); // TODO: prohibit that it spawns inside of snake
