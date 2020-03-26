@@ -6,7 +6,7 @@
 // end of game mode
 // restart
 // disable game input in paused/game_over state
-
+// understand text rendering -> optimize, load font
 
 extern crate sdl2; 
 
@@ -120,12 +120,15 @@ pub fn render(state: &GameState, canvas: &mut render::WindowCanvas) {
     let y_top = pixel_size * state.field.height + margin as u32;
 
     // draw background
-    canvas.set_draw_color(Color::RGB(0xbf, 0xdb, 0xf7));
+    canvas.set_draw_color(Color::RGB(240, 240, 240));
     canvas.clear();
-    
 
     // draw game field
     let game_rect = rect::Rect::new(margin, margin, pixel_size*state.field.width, pixel_size*state.field.height);
+    
+    canvas.set_draw_color(Color::RGB(0xbf, 0xdb, 0xf7));
+    let _result = canvas.fill_rect(game_rect);
+
     canvas.set_draw_color(Color::RGB(0, 0, 0));
     let _result = canvas.draw_rect(game_rect);
 
@@ -163,6 +166,29 @@ pub fn render(state: &GameState, canvas: &mut render::WindowCanvas) {
                                     pixel_size);
     let _result = canvas.fill_rect(food_rect);
 
+    if state.paused {
+        let ttf_context = sdl2::ttf::init().map_err(|e| e.to_string()).unwrap();
+        let texture_creator = canvas.texture_creator();
+
+        // Load a font
+        let mut font = ttf_context.load_font("/usr/share/fonts/truetype/ubuntu/Ubuntu-B.ttf", 128).unwrap();
+        font.set_style(sdl2::ttf::FontStyle::BOLD);
+
+        // render a surface, and convert it to a texture bound to the canvas
+        let surface = font.render("Paused")
+            .blended(Color::RGBA(255, 255, 255, 255)).map_err(|e| e.to_string()).unwrap();
+        let texture = texture_creator.create_texture_from_surface(&surface)
+            .map_err(|e| e.to_string()).unwrap();
+
+        let target_rect = rect::Rect::new(480, 400, 400, 120);
+        let text_background = rect::Rect::new(0, 200, 1360, 500);
+
+        canvas.set_draw_color(Color::RGB(0x05+10, 0x3c+10, 0x5e+10));
+        canvas.set_blend_mode(sdl2::render::BlendMode::Blend);
+        let _result = canvas.fill_rect(text_background);
+        canvas.copy(&texture, None, Some(target_rect)).unwrap();
+    }
+
     canvas.present();
 }
 
@@ -180,7 +206,7 @@ pub fn handle_events(state: &mut GameState, event_iter: event::EventPollIterator
                     Keycode::Up => state.snake_state.requested_direction = SnakeDirection::Up,
                     Keycode::Down => state.snake_state.requested_direction = SnakeDirection::Down,
                     Keycode::R => state.game_over = false,
-                    Keycode::P => state.game_over = !state.game_over,
+                    Keycode::P => state.paused = !state.paused,
                     Keycode::G => state.game_over = true, // for debugging purposes 
                     _ => {}   
                 }
