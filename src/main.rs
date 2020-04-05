@@ -159,8 +159,22 @@ pub fn initalize<'a>(config: &Config, ttf_context: &'a Sdl2TtfContext) -> (Sdl2C
     (sdl2_components, game_state)
 }
 
-pub fn render_text(canvas: &mut render::WindowCanvas, text:&str, target: &rect::Rect, color: &Color, style: ttf::FontStyle) {
-    
+pub fn render_text(canvas: &mut render::WindowCanvas, font: &mut Font, text:&str, target: &rect::Rect, color: Color, style: ttf::FontStyle) {
+    font.set_style(style);
+
+    let texture_creator = canvas.texture_creator();
+
+    // render a surface, and convert it to a texture bound to the canvas
+    let surface = font.render(text)
+        .blended(color).map_err(|e| e.to_string()).unwrap();
+    let texture = texture_creator.create_texture_from_surface(&surface)
+        .map_err(|e| e.to_string()).unwrap();
+
+
+
+
+    canvas.copy(&texture, None, Some(*target)).unwrap();
+
 }
 
 pub fn render(state: &GameState, canvas: &mut render::WindowCanvas, font: &mut Font) {
@@ -223,23 +237,14 @@ pub fn render(state: &GameState, canvas: &mut render::WindowCanvas, font: &mut F
     let _result = canvas.fill_rect(food_rect);
 
     if state.paused {
-        let texture_creator = canvas.texture_creator();
-
-        font.set_style(sdl2::ttf::FontStyle::BOLD);
-
-        // render a surface, and convert it to a texture bound to the canvas
-        let surface = font.render("Paused")
-            .blended(Color::RGBA(255, 255, 255, 255)).map_err(|e| e.to_string()).unwrap();
-        let texture = texture_creator.create_texture_from_surface(&surface)
-            .map_err(|e| e.to_string()).unwrap();
-
-        let target_rect = rect::Rect::new(480, 400, 400, 120);
         let text_background = rect::Rect::new(0, 200, 1360, 500);
-
         canvas.set_draw_color(Color::RGB(0x05+10, 0x3c+10, 0x5e+10));
         canvas.set_blend_mode(sdl2::render::BlendMode::Blend);
         let _result = canvas.fill_rect(text_background);
-        canvas.copy(&texture, None, Some(target_rect)).unwrap();
+
+        let target_rect = rect::Rect::new(480, 400, 400, 120);
+        render_text(canvas, font, "Paused", &target_rect, Color::RGBA(255, 255, 255, 255), sdl2::ttf::FontStyle::BOLD);
+
     }
 
     canvas.present();
