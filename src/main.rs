@@ -16,7 +16,9 @@ use sdl2::keyboard::Keycode;
 use sdl2::rect;
 use sdl2::render;
 use sdl2::event;
+use sdl2::ttf::{self, Font, Sdl2TtfContext};
 use std::time;
+
 
 #[derive(PartialEq, Copy, Clone)]
 enum SnakeDirection {
@@ -109,9 +111,59 @@ impl GameState {
     }
 }
 
+pub struct Sdl2Components<'a> {
+    canvas: sdl2::render::WindowCanvas,
+    event_pump:  sdl2::EventPump,
+    font: Font<'a, 'static>,
+}
+
+impl<'a> Sdl2Components<'a> {
+
+    pub fn new(window_width: u32, window_height: u32, ttf_context: &'a Sdl2TtfContext) -> Sdl2Components<'a> {
+        let sdl_context = sdl2::init().unwrap();
+        let  event_pump = sdl_context.event_pump().unwrap();
+        let window = sdl_context.video().unwrap().window("snake demo", window_width, window_height)
+            .position_centered().build().unwrap();
+        let canvas = window.into_canvas().build().unwrap();
+
+        Sdl2Components {
+            canvas: canvas,
+            event_pump: event_pump,
+            font: ttf_context.load_font("/usr/share/fonts/truetype/ubuntu/Ubuntu-B.ttf", 128).unwrap()
+        }
+    }
+}
 
 
-pub fn render(state: &GameState, canvas: &mut render::WindowCanvas) {
+pub struct Config {
+    window_width: u32,
+    window_height: u32,
+}
+
+impl Config {
+    // later we want to read the config from a configuration file
+    pub fn new() -> Config {
+        Config {
+            window_width: 1360,
+            window_height: 960,
+        }
+    }
+}
+
+pub fn initalize<'a>(config: &Config, ttf_context: &'a Sdl2TtfContext) -> (Sdl2Components<'a>, GameState) {
+
+    let sdl2_components = Sdl2Components::new(config.window_width, config.window_height, &ttf_context);
+
+    let game_state = GameState::new(10, 20);
+
+    (sdl2_components, game_state)
+}
+
+pub fn render_text(canvas: &mut render::WindowCanvas, text:&str, target: &rect::Rect, color: &Color, style: ttf::FontStyle) {
+    
+}
+
+pub fn render(state: &GameState, canvas: &mut render::WindowCanvas, font: &mut Font) {
     let margin = 80;
     let pixel_size = 20;
     
@@ -171,11 +223,8 @@ pub fn render(state: &GameState, canvas: &mut render::WindowCanvas) {
     let _result = canvas.fill_rect(food_rect);
 
     if state.paused {
-        let ttf_context = sdl2::ttf::init().map_err(|e| e.to_string()).unwrap();
         let texture_creator = canvas.texture_creator();
 
-        // Load a font
-        let mut font = ttf_context.load_font("/usr/share/fonts/truetype/ubuntu/Ubuntu-B.ttf", 128).unwrap();
         font.set_style(sdl2::ttf::FontStyle::BOLD);
 
         // render a surface, and convert it to a texture bound to the canvas
@@ -284,25 +333,20 @@ pub fn process_game_logic(state: &mut GameState) {
 
 
 pub fn main() {
-    let sdl_context = sdl2::init().unwrap();
-    let video_subsystem = sdl_context.video().unwrap();
-    let mut event_pump = sdl_context.event_pump().unwrap();
-
-    let window = video_subsystem.window("snake demo", 1360, 960)
-        .position_centered()
-        .build()
-        .unwrap();
  
-    let mut canvas = window.into_canvas().build().unwrap();
-    let mut state = GameState::new(10, 20);
+    let config = Config::new();
+
+    let ttf_context = sdl2::ttf::init().map_err(|e| e.to_string()).unwrap();
+    let (mut sdl_components, mut state) = initalize(&config, &ttf_context);
+
 
     while !state.done {
 
         // render
-        render(&state, &mut canvas);
+        render(&state, &mut sdl_components.canvas, &mut sdl_components.font);
         
         // handle input 
-        handle_events(&mut state, event_pump.poll_iter());
+        handle_events(&mut state, sdl_components.event_pump.poll_iter());
         
         // apply game logic
         process_game_logic(&mut state);
