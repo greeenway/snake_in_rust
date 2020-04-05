@@ -170,9 +170,6 @@ pub fn render_text(canvas: &mut render::WindowCanvas, font: &mut Font, text:&str
     let texture = texture_creator.create_texture_from_surface(&surface)
         .map_err(|e| e.to_string()).unwrap();
 
-
-
-
     canvas.copy(&texture, None, Some(*target)).unwrap();
 
 }
