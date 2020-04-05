@@ -16,7 +16,10 @@ use sdl2::keyboard::Keycode;
 use sdl2::rect;
 use sdl2::render;
 use sdl2::event;
+use sdl2::video;
+use sdl2::ttf::{self, Font, Sdl2TtfContext};
 use std::time;
+
 
 #[derive(PartialEq, Copy, Clone)]
 enum SnakeDirection {
@@ -109,7 +112,87 @@ impl GameState {
     }
 }
 
+pub struct Sdl2Components<'a> {
+    canvas: sdl2::render::WindowCanvas,
+    event_pump:  sdl2::EventPump,
+    _ttf_context: Sdl2TtfContext,
+    font: Option<Font<'a, 'static>>,
+}
 
+impl <'a> Sdl2Components<'a> {
+    fn new_internal(window_width: u32, window_height: u32) -> Sdl2Components<'a> {
+        let sdl_context = sdl2::init().unwrap();
+        let  event_pump = sdl_context.event_pump().unwrap();
+        let window = sdl_context.video().unwrap().window("snake demo", window_width, window_height)
+            .position_centered().build().unwrap();
+        let canvas = window.into_canvas().build().unwrap();
+
+        Sdl2Components {
+            canvas: canvas,
+            event_pump: event_pump,
+            _ttf_context: sdl2::ttf::init().map_err(|e| e.to_string()).unwrap(),
+            font: None 
+        }
+    }
+
+    pub fn new(window_width: u32, window_height: u32) -> Sdl2Components<'a> {
+        let mut comp = Sdl2Components::new_internal(window_width, window_height);
+
+        comp.font = Some(comp._ttf_context.load_font("/usr/share/fonts/truetype/ubuntu/Ubuntu-B.ttf", 128).unwrap());
+        comp
+    }
+}
+
+
+pub struct Config {
+    window_width: u32,
+    window_height: u32,
+}
+
+impl Config {
+    // later we want to read the config from a configuration file
+    pub fn new() -> Config {
+        Config {
+            window_width: 1360,
+            window_height: 960,
+        }
+    }
+}
+
+pub fn initalize(config: &Config) -> (Sdl2Components, GameState) {
+
+    // let sdl_context = sdl2::init().unwrap();
+    // let video_subsystem = sdl_context.video().unwrap();
+    // let mut event_pump = sdl_context.event_pump().unwrap();
+
+    // let window = video_subsystem.window("snake demo", config.window_width, config.window_height)
+    //     .position_centered()
+    //     .build()
+    //     .unwrap();
+ 
+    // let mut canvas = window.into_canvas().build().unwrap();
+
+    // let ttf_context = sdl2::ttf::init().map_err(|e| e.to_string()).unwrap();
+    // let mut font = ttf_context.load_font("/usr/share/fonts/truetype/ubuntu/Ubuntu-B.ttf", 128).unwrap();
+
+    // let sdl2_components = Sdl2Components {
+    //     sdl_context: sdl_context,
+    //     window: window,
+    //     canvas: canvas,
+    //     event_pump: event_pump,
+    //     font: font,
+    // };
+
+    let sdl2_components = Sdl2Components::new(config.window_width, config.window_height);
+
+    let game_state = GameState::new(10, 20);
+
+    (sdl2_components, game_state)
+}
+
+pub fn render_text(canvas: &mut render::WindowCanvas, text:&str, target: &rect::Rect, color: &Color, style: ttf::FontStyle) {
+    
+}
 
 pub fn render(state: &GameState, canvas: &mut render::WindowCanvas) {
     let margin = 80;
@@ -284,25 +367,31 @@ pub fn process_game_logic(state: &mut GameState) {
 
 
 pub fn main() {
-    let sdl_context = sdl2::init().unwrap();
-    let video_subsystem = sdl_context.video().unwrap();
-    let mut event_pump = sdl_context.event_pump().unwrap();
+    // let sdl_context = sdl2::init().unwrap();
+    // let video_subsystem = sdl_context.video().unwrap();
+    // let mut event_pump = sdl_context.event_pump().unwrap();
 
-    let window = video_subsystem.window("snake demo", 1360, 960)
-        .position_centered()
-        .build()
-        .unwrap();
+    // let window = video_subsystem.window("snake demo", 1360, 960)
+    //     .position_centered()
+    //     .build()
+    //     .unwrap();
  
-    let mut canvas = window.into_canvas().build().unwrap();
-    let mut state = GameState::new(10, 20);
+    let config = Config::new();
+
+    let (mut sdl_components, mut state) = initalize(&config);
+
+    // let mut canvas = window.into_canvas().build().unwrap();
+    // let mut state = GameState::new(10, 20);
+
+    
 
     while !state.done {
 
         // render
-        render(&state, &mut canvas);
+        render(&state, &mut sdl_components.canvas);
         
         // handle input 
-        handle_events(&mut state, event_pump.poll_iter());
+        handle_events(&mut state, sdl_components.event_pump.poll_iter());
         
         // apply game logic
         process_game_logic(&mut state);
